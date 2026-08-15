@@ -20,6 +20,4 @@ export async function getConfiguredClient() {
   return createClient();
 }
 
-export function siteUrl() {
-  return process.env.NEXT_PUBLIC_SITE_URL || "https://private-attache-dun.vercel.app";
-}
+export { PRODUCTION_HOST, requestOrigin, siteUrl } from "@/base/auth/site";

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getConfiguredClient, jsonError, missingConfig, siteUrl } from "@/base/auth/http";
+import { getConfiguredClient, jsonError, missingConfig, requestOrigin } from "@/base/auth/http";
 
 export async function POST(request: Request) {
   const supabase = await getConfiguredClient();
@@ -9,7 +9,7 @@ export async function POST(request: Request) {
   if (!body.email) return jsonError("Email Address is required.");
 
   const { error } = await supabase.auth.resetPasswordForEmail(body.email, {
-    redirectTo: `${siteUrl()}/reset-password`,
+    redirectTo: `${requestOrigin(request)}/reset-password`,
   });
 
   if (error) return jsonError(error.message);

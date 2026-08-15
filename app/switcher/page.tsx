@@ -4,13 +4,9 @@ import { Logo, Wordmark } from "@/base/components/Logo";
 import { ModuleCard } from "@/base/components/ModuleCard";
 import { Callout } from "@/base/components/Callout";
 import { getSessionProfile } from "@/base/identity/session";
-import {
-  getActiveProducts,
-  productState,
-  resolveLandingPath,
-  visibleProducts,
-} from "@/base/identity/entitlements";
-import { isSupabaseConfigured } from "@/base/lib/supabase/server";
+import { productState, visibleProducts } from "@/base/identity/entitlements";
+import { createClient, isSupabaseConfigured } from "@/base/lib/supabase/server";
+import { ensureBaseAccount } from "@/base/identity/bootstrap";
 import { PRODUCTS, SWITCHER_UNENTITLED } from "@/base/switcher/products";
 import type { Entitlement } from "@/base/types";
 
@@ -21,13 +17,13 @@ const glyphs: Record<string, string> = {
   partner_center: "P",
 };
 
-const DEV_ENTITLEMENTS: Entitlement[] = PRODUCTS.map((product, index) => ({
+const DEV_ENTITLEMENTS: Entitlement[] = PRODUCTS.map((product) => ({
   id: product.key,
   user_id: "dev",
   product: product.key,
   workspace_id: product.key === "whitbyos" ? "dev-workspace" : null,
   status: "active",
-  is_default_landing: index === 0,
+  is_default_landing: false,
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
 }));
@@ -40,18 +36,22 @@ export default async function SwitcherPage() {
     redirect("/login");
   }
 
-  const entitlements = profile?.entitlements ?? (configured ? [] : DEV_ENTITLEMENTS);
-  const active = getActiveProducts(entitlements);
-
-  if (configured && profile && profile.workspaces.length === 0 && active.length === 0) {
-    redirect("/onboarding/workspace");
+  if (configured && profile) {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user) {
+      try {
+        await ensureBaseAccount(supabase, user);
+      } catch {
+        // Ignore duplicate workspace rows.
+      }
+    }
   }
 
-  const skipPath = resolveLandingPath(entitlements);
-  if (configured && skipPath && skipPath !== "/switcher" && active.length === 1) {
-    redirect(skipPath);
-  }
-
+  const refreshed = configured ? await getSessionProfile() : profile;
+  const entitlements = refreshed?.entitlements ?? (configured ? [] : DEV_ENTITLEMENTS);
   const products = visibleProducts(entitlements);
 
   return (
@@ -73,20 +73,22 @@ export default async function SwitcherPage() {
           className="mb-2 text-[12.5px] font-semibold uppercase tracking-[0.06em]"
           style={{ color: "var(--text-tertiary)" }}
         >
-          Welcome{profile?.user.preferred_name || profile?.user.full_name ? ` ${profile.user.preferred_name || profile.user.full_name}` : ""}
+          Welcome
+          {refreshed?.user.preferred_name || refreshed?.user.full_name
+            ? ` ${refreshed.user.preferred_name || refreshed.user.full_name}`
+            : ""}
         </p>
         <h1 className="text-[32px] font-bold tracking-[-0.45px]">
           Choose where to continue
         </h1>
         <p className="mt-2 max-w-xl text-[15px]" style={{ color: "var(--text-secondary)" }}>
-          Private Attaché is the app shell. Whitby, the Client Portal, Academy, and Partner Center
-          are the four destinations you can enter from here.
+          Private Attaché is the app shell. Pick a module to open its placeholder. Sabahat, Rohail,
+          Rahat, and Zara replace these pages in their own folders.
         </p>
 
         {!configured ? (
           <Callout className="mt-5" tone="warning" title="Supabase is not connected">
-            The switcher is in preview mode with all four products available. Add the shared
-            Supabase keys to `.env.local` to turn on real entitlements.
+            The switcher is in preview mode with all four products available.
           </Callout>
         ) : null}
 
@@ -103,20 +105,21 @@ export default async function SwitcherPage() {
                 iconBg={product.iconBg}
                 iconFg={product.iconFg}
                 glyph={glyphs[product.key] ?? product.name[0] ?? "P"}
-                state={state === "available" ? "available" : "inactive"}
+                state={entitled ? "available" : "inactive"}
                 actionLabel={entitled ? "Open" : product.exploreLabel}
               />
             );
           })}
         </div>
 
-        <p className="mt-6 text-[12.5px]" style={{ color: "var(--text-tertiary)" }}>
-          Unentitled products are currently {SWITCHER_UNENTITLED === "hide" ? "hidden" : "shown greyed-out"}.
-          Change `NEXT_PUBLIC_SWITCHER_UNENTITLED` to `hide` or `grey`.
-        </p>
+        {SWITCHER_UNENTITLED === "hide" ? (
+          <p className="mt-6 text-[12.5px]" style={{ color: "var(--text-tertiary)" }}>
+            Products without entitlement are hidden.
+          </p>
+        ) : null}
 
-        <Link href="/onboarding/workspace" className="mt-4 inline-block text-[13.5px]">
-          Add a workspace
+        <Link href="/" className="mt-6 inline-block text-[13.5px]">
+          Back to site
         </Link>
       </div>
     </div>

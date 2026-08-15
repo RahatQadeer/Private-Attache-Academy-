@@ -93,13 +93,12 @@ export async function ModulePlaceholder({
         </p>
         <h1 className="text-[28px] font-bold tracking-[-0.4px]">{meta.comingSoon}</h1>
         <p className="mt-2 max-w-xl text-[15px]" style={{ color: "var(--text-secondary)" }}>
-          {meta.description} This route is the module entry point. Build inside your assigned
-          folder — do not fork shared identity, documents, or the design system.
+          Placeholder entry for this module. Shared auth, identity, and the switcher live in{" "}
+          <code>/base</code>. Module work happens in this folder, not in the app shell.
         </p>
         <div className="mt-6 max-w-xl">
           <Callout>
-            Ask Whitby, Build with Whitby, and Draft with Whitby are named actions inside this
-            shell. Private Attaché remains the app brand in the upper left.
+            Use the mark in the upper left to return to the product switcher.
           </Callout>
         </div>
       </div>

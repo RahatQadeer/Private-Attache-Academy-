@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { PRODUCTION_HOST } from "@/base/auth/site";
 
 const PUBLIC_PATHS = [
   "/",
@@ -8,7 +9,7 @@ const PUBLIC_PATHS = [
   "/forgot-password",
   "/reset-password",
   "/invite",
-  "/auth/callback",
+  "/auth",
 ];
 
 function isPublicPath(pathname: string) {
@@ -18,6 +19,36 @@ function isPublicPath(pathname: string) {
 }
 
 export async function updateSession(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  const hostname = request.nextUrl.hostname;
+
+  if (
+    hostname.endsWith(".vercel.app") &&
+    hostname !== PRODUCTION_HOST
+  ) {
+    const dest = request.nextUrl.clone();
+    dest.hostname = PRODUCTION_HOST;
+    dest.protocol = "https:";
+    dest.port = "";
+    return NextResponse.redirect(dest, request.method === "GET" ? 308 : 307);
+  }
+
+  if (pathname.startsWith("/auth/") && pathname !== "/auth/callback") {
+    return NextResponse.next({ request });
+  }
+
+  if (
+    pathname !== "/auth/callback" &&
+    (request.nextUrl.searchParams.has("code") || request.nextUrl.searchParams.has("token_hash"))
+  ) {
+    const dest = request.nextUrl.clone();
+    dest.pathname = "/auth/callback";
+    if (!dest.searchParams.get("next")) {
+      dest.searchParams.set("next", "/switcher");
+    }
+    return NextResponse.redirect(dest);
+  }
+
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -33,9 +64,7 @@ export async function updateSession(request: NextRequest) {
         return request.cookies.getAll();
       },
       setAll(cookiesToSet: { name: string; value: string; options?: Record<string, unknown> }[]) {
-        cookiesToSet.forEach(({ name, value }) =>
-          request.cookies.set(name, value),
-        );
+        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
         supabaseResponse = NextResponse.next({ request });
         cookiesToSet.forEach(({ name, value, options }) =>
           supabaseResponse.cookies.set(name, value, options as never),
@@ -47,8 +76,6 @@ export async function updateSession(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
-  const { pathname } = request.nextUrl;
 
   if (!user && !isPublicPath(pathname)) {
     const redirectUrl = request.nextUrl.clone();

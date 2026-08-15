@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { Button } from "@/base/components/Button";
+import { createClient } from "@/base/lib/supabase/client";
+import { siteUrl } from "@/base/auth/site";
 import { cn } from "@/base/lib/cn";
 
 export function GoogleButton({
@@ -18,20 +20,20 @@ export function GoogleButton({
     setPending(true);
     setError(null);
     try {
-      const response = await fetch("/auth/google", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ next: nextPath }),
+      const supabase = createClient();
+      const next = nextPath.startsWith("/onboarding") ? "/switcher" : nextPath || "/switcher";
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${siteUrl()}/auth/callback?next=${encodeURIComponent(next)}`,
+        },
       });
-      const data = (await response.json()) as { url?: string; error?: string };
-      if (!response.ok || !data.url) {
-        setError(data.error || "Google sign-in is not configured yet.");
+      if (oauthError) {
+        setError(oauthError.message);
         setPending(false);
-        return;
       }
-      window.location.href = data.url;
-    } catch {
-      setError("Could not start Google sign-in.");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not start Google sign-in.");
       setPending(false);
     }
   }

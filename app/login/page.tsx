@@ -1,10 +1,10 @@
 import { AuthLayout } from "@/base/components/AuthLayout";
-import { LoginForm } from "@/base/auth/LoginForm";
+import { EmailOtpForm } from "@/base/auth/EmailOtpForm";
 
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string; notice?: string; brand?: string }>;
+  searchParams: Promise<{ next?: string; notice?: string; brand?: string; error?: string }>;
 }) {
   const params = await searchParams;
   const nextPath = params.next || "/switcher";
@@ -17,12 +17,12 @@ export default async function LoginPage({
 
   return (
     <AuthLayout eyebrow={eyebrow} title="Sign in">
-      {params.notice === "check-email" ? (
-        <p className="mb-4 text-[13.5px]" style={{ color: "var(--text-secondary)" }}>
-          Check your email to confirm the account, then sign in.
+      {params.error ? (
+        <p className="mb-4 text-[13.5px]" style={{ color: "var(--danger-fg)" }}>
+          {params.error}
         </p>
       ) : null}
-      <LoginForm nextPath={nextPath} />
+      <EmailOtpForm mode="login" nextPath={nextPath} />
     </AuthLayout>
   );
 }

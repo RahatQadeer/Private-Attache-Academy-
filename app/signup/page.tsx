@@ -1,5 +1,5 @@
 import { AuthLayout } from "@/base/components/AuthLayout";
-import { SignupForm } from "@/base/auth/SignupForm";
+import { EmailOtpForm } from "@/base/auth/EmailOtpForm";
 
 export default async function SignupPage({
   searchParams,
@@ -14,7 +14,7 @@ export default async function SignupPage({
 
   return (
     <AuthLayout eyebrow={eyebrow} title="Create your account">
-      <SignupForm nextPath={params.next || "/onboarding/workspace"} />
+      <EmailOtpForm mode="signup" nextPath={params.next || "/switcher"} />
     </AuthLayout>
   );
 }
