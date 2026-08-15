@@ -178,7 +178,7 @@ migrations (Section 3.6), so every dev pulls the same schema via `git pull`
 
 ```
 /base or /shared          ← you own this
-  /auth                   ← sign up, login, reset password, invite flow
+  /auth                   ← email OTP + Google, invite flow
   /identity               ← users, workspaces, entitlements, roles
   /switcher                ← the product switcher
   /canonical               ← contacts, companies, documents (shared models)
