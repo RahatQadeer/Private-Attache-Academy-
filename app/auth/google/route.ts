@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { getConfiguredClient, jsonError, missingConfig, siteUrl } from "@/base/auth/http";
+import { getConfiguredClient, jsonError, missingConfig, requestOrigin } from "@/base/auth/http";
 
 export async function POST(request: Request) {
   const supabase = await getConfiguredClient();
   if (!supabase) return missingConfig();
 
   const body = (await request.json()) as { next?: string };
-  const origin = siteUrl();
+  const origin = requestOrigin(request);
   const next = body.next || "/switcher";
 
   const { data, error } = await supabase.auth.signInWithOAuth({

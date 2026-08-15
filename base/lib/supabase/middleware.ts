@@ -8,7 +8,7 @@ const PUBLIC_PATHS = [
   "/forgot-password",
   "/reset-password",
   "/invite",
-  "/auth/callback",
+  "/auth",
 ];
 
 function isPublicPath(pathname: string) {

@@ -9,6 +9,7 @@ import {
   SubmitButton,
 } from "@/base/components/AuthControls";
 import Link from "next/link";
+import { readAuthResponse } from "@/base/auth/readResponse";
 
 export function SignupForm({ nextPath }: { nextPath: string }) {
   const [error, setError] = useState<string | null>(null);
@@ -18,31 +19,35 @@ export function SignupForm({ nextPath }: { nextPath: string }) {
     event.preventDefault();
     setPending(true);
     setError(null);
-    const form = new FormData(event.currentTarget);
-    const password = String(form.get("password") ?? "");
-    const confirm = String(form.get("confirmPassword") ?? "");
-    if (password !== confirm) {
-      setError("Passwords do not match.");
+    try {
+      const form = new FormData(event.currentTarget);
+      const password = String(form.get("password") ?? "");
+      const confirm = String(form.get("confirmPassword") ?? "");
+      if (password !== confirm) {
+        setError("Passwords do not match.");
+        return;
+      }
+      const response = await fetch("/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fullName: form.get("fullName"),
+          email: form.get("email"),
+          password,
+          next: nextPath,
+        }),
+      });
+      const data = await readAuthResponse(response);
+      if (!response.ok) {
+        setError(data.error || "Could not create account.");
+        return;
+      }
+      window.location.href = data.redirect || nextPath;
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Could not create account.");
+    } finally {
       setPending(false);
-      return;
     }
-    const response = await fetch("/auth/signup", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        fullName: form.get("fullName"),
-        email: form.get("email"),
-        password,
-        next: nextPath,
-      }),
-    });
-    const data = (await response.json()) as { error?: string; redirect?: string };
-    if (!response.ok) {
-      setError(data.error || "Could not create account.");
-      setPending(false);
-      return;
-    }
-    window.location.href = data.redirect || nextPath;
   }
 
   return (

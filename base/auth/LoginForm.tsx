@@ -10,6 +10,7 @@ import {
 } from "@/base/components/AuthControls";
 import { Toggle } from "@/base/components/Toggle";
 import Link from "next/link";
+import { readAuthResponse } from "@/base/auth/readResponse";
 
 export function LoginForm({ nextPath }: { nextPath: string }) {
   const [keepSignedIn, setKeepSignedIn] = useState(true);
@@ -20,24 +21,29 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
     event.preventDefault();
     setPending(true);
     setError(null);
-    const form = new FormData(event.currentTarget);
-    const response = await fetch("/auth/login", {
-      method: "POST",
-      body: JSON.stringify({
-        email: form.get("email"),
-        password: form.get("password"),
-        keepSignedIn,
-        next: nextPath,
-      }),
-      headers: { "Content-Type": "application/json" },
-    });
-    const data = (await response.json()) as { error?: string; redirect?: string };
-    if (!response.ok) {
-      setError(data.error || "Could not sign in.");
+    try {
+      const form = new FormData(event.currentTarget);
+      const response = await fetch("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({
+          email: form.get("email"),
+          password: form.get("password"),
+          keepSignedIn,
+          next: nextPath,
+        }),
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await readAuthResponse(response);
+      if (!response.ok) {
+        setError(data.error || "Could not sign in.");
+        return;
+      }
+      window.location.href = data.redirect || nextPath;
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Could not sign in.");
+    } finally {
       setPending(false);
-      return;
     }
-    window.location.href = data.redirect || nextPath;
   }
 
   return (

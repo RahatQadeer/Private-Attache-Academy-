@@ -23,3 +23,11 @@ export async function getConfiguredClient() {
 export function siteUrl() {
   return process.env.NEXT_PUBLIC_SITE_URL || "https://private-attache-dun.vercel.app";
 }
+
+export function requestOrigin(request: Request) {
+  const url = new URL(request.url);
+  if (url.origin.includes("localhost") || url.origin.includes("127.0.0.1")) {
+    return siteUrl();
+  }
+  return url.origin;
+}

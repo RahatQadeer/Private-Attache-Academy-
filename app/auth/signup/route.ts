@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getConfiguredClient, jsonError, missingConfig, siteUrl } from "@/base/auth/http";
+import { getConfiguredClient, jsonError, missingConfig, requestOrigin } from "@/base/auth/http";
 
 export async function POST(request: Request) {
   const supabase = await getConfiguredClient();
@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     password: body.password,
     options: {
       data: { full_name: body.fullName },
-      emailRedirectTo: `${siteUrl()}/auth/callback?next=/onboarding/workspace`,
+      emailRedirectTo: `${requestOrigin(request)}/auth/callback?next=/onboarding/workspace`,
     },
   });
 

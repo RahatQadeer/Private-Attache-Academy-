@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/base/components/Button";
+import { readAuthResponse } from "@/base/auth/readResponse";
 import { cn } from "@/base/lib/cn";
 
 export function GoogleButton({
@@ -23,15 +24,17 @@ export function GoogleButton({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ next: nextPath }),
       });
-      const data = (await response.json()) as { url?: string; error?: string };
+      const data = await readAuthResponse(response);
       if (!response.ok || !data.url) {
         setError(data.error || "Google sign-in is not configured yet.");
         setPending(false);
         return;
       }
       window.location.href = data.url;
-    } catch {
-      setError("Could not start Google sign-in.");
+    } catch (error) {
+      setError(
+        error instanceof Error ? error.message : "Could not start Google sign-in.",
+      );
       setPending(false);
     }
   }
