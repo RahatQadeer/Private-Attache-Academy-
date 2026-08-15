@@ -1,4 +1,4 @@
-# Private Attaché System
+# Private Attaché System.
 
 One Next.js app, one Vercel project, one Supabase project. Four products behind a shared identity and a product switcher.
 
