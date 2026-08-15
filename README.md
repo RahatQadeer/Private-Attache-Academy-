@@ -13,7 +13,7 @@ One Next.js app, one Vercel project, one Supabase project. Four products behind 
 ## Git workflow
 
 ```bash
-git clone https://github.com/RightTailCorp/Private-Attache-System.git
+git clone https://github.com/righttailorg-2/Private-Attache-System.git
 cd Private-Attache-System
 git checkout base
 git checkout -b <name>/<module>
