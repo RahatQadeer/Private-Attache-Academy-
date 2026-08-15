@@ -2,8 +2,6 @@
 
 import { useState } from "react";
 import { Button } from "@/base/components/Button";
-import { createClient } from "@/base/lib/supabase/client";
-import { siteUrl } from "@/base/auth/site";
 import { cn } from "@/base/lib/cn";
 
 export function GoogleButton({
@@ -14,28 +12,11 @@ export function GoogleButton({
   nextPath?: string;
 }) {
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  async function onClick() {
+  function onClick() {
+    const next = nextPath.startsWith("/onboarding") ? "/switcher" : nextPath || "/switcher";
     setPending(true);
-    setError(null);
-    try {
-      const supabase = createClient();
-      const next = nextPath.startsWith("/onboarding") ? "/switcher" : nextPath || "/switcher";
-      const { error: oauthError } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${siteUrl()}/auth/callback?next=${encodeURIComponent(next)}`,
-        },
-      });
-      if (oauthError) {
-        setError(oauthError.message);
-        setPending(false);
-      }
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Could not start Google sign-in.");
-      setPending(false);
-    }
+    window.location.assign(`/auth/google?next=${encodeURIComponent(next)}`);
   }
 
   return (
@@ -52,11 +33,6 @@ export function GoogleButton({
         <GoogleMark />
         {pending ? "Redirecting…" : label}
       </button>
-      {error ? (
-        <p className="mt-2 text-[12.5px]" style={{ color: "var(--danger-fg)" }}>
-          {error}
-        </p>
-      ) : null}
     </div>
   );
 }
@@ -96,13 +72,15 @@ export function FormError({ message }: { message?: string | null }) {
 export function SubmitButton({
   children,
   pending,
+  pendingLabel = "Working…",
 }: {
   children: React.ReactNode;
   pending?: boolean;
+  pendingLabel?: string;
 }) {
   return (
     <Button type="submit" variant="primary" fullWidth disabled={pending}>
-      {pending ? "Working…" : children}
+      {pending ? pendingLabel : children}
     </Button>
   );
 }

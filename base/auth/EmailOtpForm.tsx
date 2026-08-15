@@ -10,7 +10,25 @@ import {
   SubmitButton,
 } from "@/base/components/AuthControls";
 import { createClient } from "@/base/lib/supabase/client";
-import { siteUrl } from "@/base/auth/site";
+import { readAuthResponse } from "@/base/auth/readResponse";
+
+const REQUEST_MS = 20_000;
+
+async function fetchJson(input: RequestInfo, init: RequestInit) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_MS);
+  try {
+    const response = await fetch(input, { ...init, signal: controller.signal });
+    return { response, data: await readAuthResponse(response) };
+  } catch (caught) {
+    if (caught instanceof DOMException && caught.name === "AbortError") {
+      throw new Error("That request timed out. Try again.");
+    }
+    throw caught;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 export function EmailOtpForm({
   mode,
@@ -25,19 +43,6 @@ export function EmailOtpForm({
   const [fullName, setFullName] = useState("");
   const [sentTo, setSentTo] = useState<string | null>(null);
 
-  async function requestCode(nextEmail: string, nextName?: string) {
-    const supabase = createClient();
-    const { error: otpError } = await supabase.auth.signInWithOtp({
-      email: nextEmail,
-      options: {
-        shouldCreateUser: true,
-        data: nextName ? { full_name: nextName } : undefined,
-        emailRedirectTo: `${siteUrl()}/auth/callback?next=/switcher`,
-      },
-    });
-    if (otpError) throw new Error(otpError.message);
-  }
-
   async function sendCode(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setPending(true);
@@ -46,7 +51,18 @@ export function EmailOtpForm({
       const form = new FormData(event.currentTarget);
       const nextEmail = String(form.get("email") ?? "").trim();
       const nextName = String(form.get("fullName") ?? "").trim();
-      await requestCode(nextEmail, nextName || undefined);
+      const { response, data } = await fetchJson("/auth/otp/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: nextEmail,
+          fullName: nextName || undefined,
+        }),
+      });
+      if (!response.ok) {
+        setError(data.error || "Could not send a sign-in code.");
+        return;
+      }
       setEmail(nextEmail);
       setFullName(nextName);
       setSentTo(nextEmail);
@@ -84,7 +100,9 @@ export function EmailOtpForm({
         setError(lastMessage);
         return;
       }
-      window.location.href = nextPath.startsWith("/onboarding") ? "/switcher" : nextPath || "/switcher";
+      window.location.href = nextPath.startsWith("/onboarding")
+        ? "/switcher"
+        : nextPath || "/switcher";
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not verify that code.");
     } finally {
@@ -99,8 +117,8 @@ export function EmailOtpForm({
       {sentTo ? (
         <form onSubmit={verifyCode} className="space-y-4">
           <p className="text-[14px]" style={{ color: "var(--text-secondary)" }}>
-            We sent a sign-in email to {sentTo}. Open it and click the sign-in
-            link. If a 6-digit code is shown, you can enter it here instead.
+            We sent a sign-in email to {sentTo}. Open it and click the link.
+            If a 6-digit code is shown, you can enter it here instead.
           </p>
           <Input
             label="6-digit code"
@@ -112,7 +130,9 @@ export function EmailOtpForm({
             maxLength={6}
           />
           <FormError message={error} />
-          <SubmitButton pending={pending}>Verify code</SubmitButton>
+          <SubmitButton pending={pending} pendingLabel="Verifying…">
+            Verify code
+          </SubmitButton>
           <button
             type="button"
             className="block w-full text-center text-[13.5px]"
@@ -121,7 +141,17 @@ export function EmailOtpForm({
               setPending(true);
               setError(null);
               try {
-                await requestCode(email, fullName || undefined);
+                const { response, data } = await fetchJson("/auth/otp/send", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    email,
+                    fullName: fullName || undefined,
+                  }),
+                });
+                if (!response.ok) {
+                  setError(data.error || "Could not resend the code.");
+                }
               } catch (caught) {
                 setError(
                   caught instanceof Error ? caught.message : "Could not resend the code.",
@@ -131,7 +161,7 @@ export function EmailOtpForm({
               }
             }}
           >
-            Resend email
+            Resend code
           </button>
           <button
             type="button"
@@ -163,7 +193,9 @@ export function EmailOtpForm({
             required
           />
           <FormError message={error} />
-          <SubmitButton pending={pending}>Email me a sign-in link</SubmitButton>
+          <SubmitButton pending={pending} pendingLabel="Sending…">
+            Email me a code
+          </SubmitButton>
           <p
             className="text-center text-[13.5px]"
             style={{ color: "var(--text-secondary)" }}
