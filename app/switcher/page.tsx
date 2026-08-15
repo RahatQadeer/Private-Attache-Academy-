@@ -5,7 +5,8 @@ import { ModuleCard } from "@/base/components/ModuleCard";
 import { Callout } from "@/base/components/Callout";
 import { getSessionProfile } from "@/base/identity/session";
 import { productState, visibleProducts } from "@/base/identity/entitlements";
-import { isSupabaseConfigured } from "@/base/lib/supabase/server";
+import { createClient, isSupabaseConfigured } from "@/base/lib/supabase/server";
+import { ensureBaseAccount } from "@/base/identity/bootstrap";
 import { PRODUCTS, SWITCHER_UNENTITLED } from "@/base/switcher/products";
 import type { Entitlement } from "@/base/types";
 
@@ -35,7 +36,22 @@ export default async function SwitcherPage() {
     redirect("/login");
   }
 
-  const entitlements = profile?.entitlements ?? (configured ? [] : DEV_ENTITLEMENTS);
+  if (configured && profile) {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user) {
+      try {
+        await ensureBaseAccount(supabase, user);
+      } catch {
+        // Ignore duplicate workspace rows.
+      }
+    }
+  }
+
+  const refreshed = configured ? await getSessionProfile() : profile;
+  const entitlements = refreshed?.entitlements ?? (configured ? [] : DEV_ENTITLEMENTS);
   const products = visibleProducts(entitlements);
 
   return (
@@ -58,8 +74,8 @@ export default async function SwitcherPage() {
           style={{ color: "var(--text-tertiary)" }}
         >
           Welcome
-          {profile?.user.preferred_name || profile?.user.full_name
-            ? ` ${profile.user.preferred_name || profile.user.full_name}`
+          {refreshed?.user.preferred_name || refreshed?.user.full_name
+            ? ` ${refreshed.user.preferred_name || refreshed.user.full_name}`
             : ""}
         </p>
         <h1 className="text-[32px] font-bold tracking-[-0.45px]">
