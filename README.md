@@ -53,7 +53,7 @@ Each module folder already has a `cursor.md`. Open Cursor there and start.
 ## Local setup
 
 1. Copy `.env.example` to `.env.local` and fill in the one shared Supabase project (URL, anon key, service role). Set the same three values once on the Vercel project — never per module.
-2. Enable Email and Google providers in Supabase Auth. Add `http://localhost:3000/auth/callback` and the Vercel URL as redirect URLs.
+2. Enable Email and Google providers in Supabase Auth. Set Site URL and Redirect URLs to `https://private-attache-dun.vercel.app/**` only — do not add localhost.
 3. Push schema:
 
 ```bash
