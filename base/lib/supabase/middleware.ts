@@ -1,7 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-
-const PRODUCTION_HOST = "private-attache-dun.vercel.app";
+import { PRODUCTION_HOST } from "@/base/auth/site";
 
 const PUBLIC_PATHS = [
   "/",
@@ -38,7 +37,10 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.next({ request });
   }
 
-  if (request.nextUrl.searchParams.has("code") && pathname !== "/auth/callback") {
+  if (
+    pathname !== "/auth/callback" &&
+    (request.nextUrl.searchParams.has("code") || request.nextUrl.searchParams.has("token_hash"))
+  ) {
     const dest = request.nextUrl.clone();
     dest.pathname = "/auth/callback";
     if (!dest.searchParams.get("next")) {

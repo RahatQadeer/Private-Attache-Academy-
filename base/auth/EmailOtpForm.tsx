@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Input } from "@/base/components/Input";
 import {
   Divider,
@@ -8,8 +9,8 @@ import {
   GoogleButton,
   SubmitButton,
 } from "@/base/components/AuthControls";
-import { readAuthResponse } from "@/base/auth/readResponse";
-import Link from "next/link";
+import { createClient } from "@/base/lib/supabase/client";
+import { siteUrl } from "@/base/auth/site";
 
 export function EmailOtpForm({
   mode,
@@ -24,27 +25,28 @@ export function EmailOtpForm({
   const [fullName, setFullName] = useState("");
   const [sentTo, setSentTo] = useState<string | null>(null);
 
+  async function requestCode(nextEmail: string, nextName?: string) {
+    const supabase = createClient();
+    const { error: otpError } = await supabase.auth.signInWithOtp({
+      email: nextEmail,
+      options: {
+        shouldCreateUser: true,
+        data: nextName ? { full_name: nextName } : undefined,
+        emailRedirectTo: `${siteUrl()}/auth/callback?next=/switcher`,
+      },
+    });
+    if (otpError) throw new Error(otpError.message);
+  }
+
   async function sendCode(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setPending(true);
     setError(null);
     try {
       const form = new FormData(event.currentTarget);
-      const nextEmail = String(form.get("email") ?? "");
-      const nextName = String(form.get("fullName") ?? "");
-      const response = await fetch("/auth/otp/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: nextEmail,
-          fullName: nextName || undefined,
-        }),
-      });
-      const data = await readAuthResponse(response);
-      if (!response.ok) {
-        setError(data.error || "Could not send a sign-in code.");
-        return;
-      }
+      const nextEmail = String(form.get("email") ?? "").trim();
+      const nextName = String(form.get("fullName") ?? "").trim();
+      await requestCode(nextEmail, nextName || undefined);
       setEmail(nextEmail);
       setFullName(nextName);
       setSentTo(nextEmail);
@@ -61,21 +63,28 @@ export function EmailOtpForm({
     setError(null);
     try {
       const form = new FormData(event.currentTarget);
-      const response = await fetch("/auth/otp/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const token = String(form.get("token") ?? "").replace(/\s/g, "");
+      const supabase = createClient();
+      const types = ["email", "magiclink", "signup"] as const;
+      let lastMessage = "That code is not valid.";
+      let ok = false;
+      for (const type of types) {
+        const { error: verifyError } = await supabase.auth.verifyOtp({
           email,
-          token: form.get("token"),
-          fullName,
-        }),
-      });
-      const data = await readAuthResponse(response);
-      if (!response.ok) {
-        setError(data.error || "That code is not valid.");
+          token,
+          type,
+        });
+        if (!verifyError) {
+          ok = true;
+          break;
+        }
+        lastMessage = verifyError.message;
+      }
+      if (!ok) {
+        setError(lastMessage);
         return;
       }
-      window.location.href = data.redirect || nextPath;
+      window.location.href = nextPath.startsWith("/onboarding") ? "/switcher" : nextPath || "/switcher";
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not verify that code.");
     } finally {
@@ -85,25 +94,22 @@ export function EmailOtpForm({
 
   return (
     <div>
-      <GoogleButton
-        label="Continue with Google"
-        nextPath={nextPath}
-      />
+      <GoogleButton label="Continue with Google" nextPath={nextPath} />
       <Divider />
       {sentTo ? (
         <form onSubmit={verifyCode} className="space-y-4">
           <p className="text-[14px]" style={{ color: "var(--text-secondary)" }}>
-            We emailed {sentTo}. Open that message and click the sign-in link,
-            or enter the 6-digit code if one is shown.
+            We sent a sign-in email to {sentTo}. Open it and click the sign-in
+            link. If a 6-digit code is shown, you can enter it here instead.
           </p>
           <Input
-            label="Sign-in code"
+            label="6-digit code"
             name="token"
             inputMode="numeric"
             autoComplete="one-time-code"
             required
             minLength={6}
-            maxLength={8}
+            maxLength={6}
           />
           <FormError message={error} />
           <SubmitButton pending={pending}>Verify code</SubmitButton>
@@ -115,15 +121,7 @@ export function EmailOtpForm({
               setPending(true);
               setError(null);
               try {
-                const response = await fetch("/auth/otp/send", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ email, fullName: fullName || undefined }),
-                });
-                const data = await readAuthResponse(response);
-                if (!response.ok) {
-                  setError(data.error || "Could not resend the code.");
-                }
+                await requestCode(email, fullName || undefined);
               } catch (caught) {
                 setError(
                   caught instanceof Error ? caught.message : "Could not resend the code.",
@@ -133,7 +131,7 @@ export function EmailOtpForm({
               }
             }}
           >
-            Resend code
+            Resend email
           </button>
           <button
             type="button"
@@ -165,9 +163,7 @@ export function EmailOtpForm({
             required
           />
           <FormError message={error} />
-          <SubmitButton pending={pending}>
-            {mode === "signup" ? "Send sign-in code" : "Email me a code"}
-          </SubmitButton>
+          <SubmitButton pending={pending}>Email me a sign-in link</SubmitButton>
           <p
             className="text-center text-[13.5px]"
             style={{ color: "var(--text-secondary)" }}

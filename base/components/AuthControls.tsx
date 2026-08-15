@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { Button } from "@/base/components/Button";
+import { createClient } from "@/base/lib/supabase/client";
+import { siteUrl } from "@/base/auth/site";
 import { cn } from "@/base/lib/cn";
 
 export function GoogleButton({
@@ -14,10 +16,26 @@ export function GoogleButton({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  function onClick() {
+  async function onClick() {
     setPending(true);
     setError(null);
-    window.location.assign(`/auth/google?next=${encodeURIComponent(nextPath)}`);
+    try {
+      const supabase = createClient();
+      const next = nextPath.startsWith("/onboarding") ? "/switcher" : nextPath || "/switcher";
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${siteUrl()}/auth/callback?next=${encodeURIComponent(next)}`,
+        },
+      });
+      if (oauthError) {
+        setError(oauthError.message);
+        setPending(false);
+      }
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not start Google sign-in.");
+      setPending(false);
+    }
   }
 
   return (
