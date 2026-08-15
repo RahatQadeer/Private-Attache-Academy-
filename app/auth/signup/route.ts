@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getConfiguredClient, jsonError, missingConfig, requestOrigin } from "@/base/auth/http";
+import { getConfiguredClient, jsonError, missingConfig } from "@/base/auth/http";
+import { ensureBaseAccount } from "@/base/identity/bootstrap";
 
 export async function POST(request: Request) {
   const supabase = await getConfiguredClient();
@@ -21,17 +22,26 @@ export async function POST(request: Request) {
     password: body.password,
     options: {
       data: { full_name: body.fullName },
-      emailRedirectTo: `${requestOrigin(request)}/auth/callback?next=/onboarding/workspace`,
     },
   });
 
   if (error) return jsonError(error.message);
 
-  if (!data.session) {
+  if (!data.session || !data.user) {
     return NextResponse.json({
       redirect: `/login?notice=check-email`,
     });
   }
 
-  return NextResponse.json({ redirect: "/onboarding/workspace" });
+  try {
+    await ensureBaseAccount(supabase, {
+      id: data.user.id,
+      email: data.user.email,
+      user_metadata: { full_name: body.fullName },
+    });
+  } catch {
+    // Continue to the switcher even if a workspace already exists.
+  }
+
+  return NextResponse.json({ redirect: body.next || "/switcher" });
 }

@@ -1,6 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+const PRODUCTION_HOST = "private-attache-dun.vercel.app";
+
 const PUBLIC_PATHS = [
   "/",
   "/login",
@@ -18,6 +20,30 @@ function isPublicPath(pathname: string) {
 }
 
 export async function updateSession(request: NextRequest) {
+  const hostname = request.nextUrl.hostname;
+  if (
+    hostname.endsWith(".vercel.app") &&
+    hostname !== PRODUCTION_HOST &&
+    !hostname.includes("localhost")
+  ) {
+    const dest = request.nextUrl.clone();
+    dest.hostname = PRODUCTION_HOST;
+    dest.protocol = "https:";
+    dest.port = "";
+    return NextResponse.redirect(dest);
+  }
+
+  if (
+    request.nextUrl.searchParams.has("code") &&
+    request.nextUrl.pathname !== "/auth/callback"
+  ) {
+    const dest = request.nextUrl.clone();
+    dest.pathname = "/auth/callback";
+    if (!dest.searchParams.get("next")) {
+      dest.searchParams.set("next", "/switcher");
+    }
+    return NextResponse.redirect(dest);
+  }
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 

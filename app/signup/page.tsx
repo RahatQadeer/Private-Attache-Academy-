@@ -14,7 +14,7 @@ export default async function SignupPage({
 
   return (
     <AuthLayout eyebrow={eyebrow} title="Create your account">
-      <SignupForm nextPath={params.next || "/onboarding/workspace"} />
+      <SignupForm nextPath={params.next || "/switcher"} />
     </AuthLayout>
   );
 }

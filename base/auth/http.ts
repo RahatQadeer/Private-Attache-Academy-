@@ -24,10 +24,8 @@ export function siteUrl() {
   return process.env.NEXT_PUBLIC_SITE_URL || "https://private-attache-dun.vercel.app";
 }
 
-export function requestOrigin(request: Request) {
-  const url = new URL(request.url);
-  if (url.origin.includes("localhost") || url.origin.includes("127.0.0.1")) {
-    return siteUrl();
-  }
-  return url.origin;
+export function requestOrigin(_request?: Request) {
+  return siteUrl();
 }
+
+export const PRODUCTION_HOST = "private-attache-dun.vercel.app";

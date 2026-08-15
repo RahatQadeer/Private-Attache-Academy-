@@ -7,7 +7,8 @@ export async function POST(request: Request) {
 
   const body = (await request.json()) as { next?: string };
   const origin = requestOrigin(request);
-  const next = body.next || "/switcher";
+  const requested = body.next || "/switcher";
+  const next = requested.startsWith("/onboarding") ? "/switcher" : requested;
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
